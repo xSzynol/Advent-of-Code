@@ -1,3 +1,6 @@
+//I know it could be faster - all the file copied to stringstream and then seek 
+//through it not using getline() func, but I'm too lazy!
+
 #include <iostream>
 #include <fstream>
 #include <memory>
@@ -138,4 +141,5 @@ auto main() -> int
 	std::cout << "Maks kalorii: " << bestElves::bestElf.getCalories();
 	std::cout << "\nPrzy id elfa: " << bestElves::bestElf.idx;
 	std::cin.get();
+	file.close();
 }
