@@ -12,6 +12,8 @@
 #include <thread>
 #include <chrono>
 #include <optional>
+#include <numeric>
+#include <algorithm>
 
 class elf
 {
@@ -22,30 +24,32 @@ class elf
 
 	public:
 	size_t idx = 0;
-	uint32_t getCalories()
+	uint32_t getCalories() const
 	{ return calories; }
 	
 	elf() = default;
-	elf(size_t promptedIdx, std::vector <uint32_t> ctorPuzzles) : idx(promptedIdx), puzzles(ctorPuzzles)
+	elf(size_t promptedIdx, std::vector <uint32_t> ctorPuzzles) : idx(promptedIdx), puzzles(std::move(ctorPuzzles))
 	{
-		auto sum = [](auto vec, auto& calories) -> size_t
+		/*auto sum = [](auto vec, auto& calories) -> size_t // Depreciated, due to the std::accumulate.
 		{
 			for (auto const& calory : vec)
 				calories += calory;
 
 			return calories;
-		};
+		};*/
+
+		calories = std::accumulate(puzzles.begin(), puzzles.end(), 0);
 
 		std::cout << "Elf no " << 
 			this->idx << " has " << 
 			this->puzzles.size() << " amount of puzzle and " << 
-			sum(puzzles, calories) << " amount of calories. \n";
+			calories << " amount of calories. \n";
 	}
 };
 
 namespace bestElves
 {
-	static inline elf bestElf;
+	std::vector <size_t> bestElf;
 }
 
 auto findAnotherElf(std::ifstream& file, size_t elfIdx) -> std::optional <elf> 
@@ -53,7 +57,7 @@ auto findAnotherElf(std::ifstream& file, size_t elfIdx) -> std::optional <elf>
 	auto currentLine	= std::string();
 	auto currIdx		= size_t(0);
 	auto puzzles		= std::vector <uint32_t> ();
-	auto atDestination	= bool(false);
+	auto atDestination	= false;
 
 	while (std::getline(file, currentLine)) // Iterating through entire file is slow, but I'm too lazy for that.
 	{
@@ -73,7 +77,7 @@ auto findAnotherElf(std::ifstream& file, size_t elfIdx) -> std::optional <elf>
 		else if (atDestination == true)
 		{
 			if (currentLine != "")
-				puzzles.push_back(uint32_t(stoi(currentLine)));
+				puzzles.push_back(uint32_t(std::stoi(currentLine)));
 			else
 				break;
 		}
@@ -86,14 +90,40 @@ auto findAnotherElf(std::ifstream& file, size_t elfIdx) -> std::optional <elf>
 }
 
 void updateCalories(elf& currentElf) noexcept
-{
-	auto saveElf = [&currentElf]() -> elf { return currentElf; };
-
-	if (currentElf.getCalories() > bestElves::bestElf.getCalories())
+{ // I could save all the elves and then sort them.
+	#define bE bestElves::bestElf
+	if (bE.size() < 3)
 	{
-		auto pair = saveElf();
-		bestElves::bestElf = pair;
+		bE.push_back(currentElf.getCalories());
+		return;
 	}
+	else if (bE.size() == 3)
+		std::sort(bE.begin(), bE.end(), [](size_t i, size_t j) {return i > j; });
+
+	if (currentElf.getCalories() > bE[0]) // Somehow slow and non-professional.
+	{
+		bE[2] = bE[1];
+		bE[1] = bE[0];
+		bE[0] = currentElf.getCalories();
+	}
+
+	if (currentElf.getCalories() > bE[1] && currentElf.getCalories() < bE[0])
+	{
+		bE[2] = bE[1];
+		bE[1] = currentElf.getCalories();
+	}
+
+	if (currentElf.getCalories() > bE[2] && currentElf.getCalories() < bE[1])
+		bE[2] = currentElf.getCalories();
+	/*
+	if (currentElf.getCalories() > bE[0])
+	{
+		bE.push_back(currentElf.getCalories());
+		std::sort(bE.begin(), bE.end(), [](size_t i, size_t j) {return i > j; });
+		bE.pop_back();
+	}*/
+
+	#undef bE
 }
 
 auto checkElves(std::ifstream& file)
@@ -119,12 +149,13 @@ auto checkElves(std::ifstream& file)
 
 auto main() -> int
 {
-	std::cout << "Zliczanie ktory elf ma najwieksza ilosc kcali... \n";
-	auto file = std::ifstream();
+	std::cout << "Counting which elf carrying meal that has the most calories... \n";
+	auto file		= std::ifstream();
+	auto filePath	= std::string_view("C:\\Users\\Testo\\source\\repos\\AoC\\Advent Of Code\\Advent Of Code\\FirstDay\\Puzzle-Day1.txt");
 
 	try
 	{
-		file.open("C:\\Users\\Testo\\source\\repos\\AoC\\Advent Of Code\\Advent Of Code\\Puzzle-Day1.txt", std::ios::in);
+		file.open(filePath.data(), std::ios::in);
 
 		if (!file.is_open())
 		{
@@ -134,12 +165,21 @@ auto main() -> int
 	{
 		std::cerr << e.what() << '\n';
 		std::cin.get();
-		std::terminate();
+		return 1;
 	}
 
 	checkElves(file);
-	std::cout << "Maks kalorii: " << bestElves::bestElf.getCalories();
-	std::cout << "\nPrzy id elfa: " << bestElves::bestElf.idx;
+	auto maxCalories = [](auto vec) -> size_t 
+	{ 
+		auto max = size_t(0); 
+		for (auto _elf : vec) 
+			max += _elf;
+		
+		return max;
+	};
+
+	std::cout << "First three elfes with most calories: " << maxCalories(bestElves::bestElf);
 	std::cin.get();
 	file.close();
+	return 0;
 }
