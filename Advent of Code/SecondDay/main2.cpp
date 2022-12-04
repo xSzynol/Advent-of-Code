@@ -23,54 +23,46 @@ void openFile(std::string_view filePath, std::ifstream& file, std::vector<std::s
 	file.close();
 }
 
-auto calculateRound(std::string const& round, size_t idx) -> std::pair <uint16_t, uint16_t>
+struct Verdict
 {
-	//1 + 1 |= 3
-	//1 + 2 += 6
-	//1 + 3 /= 0
-
-	//2 + 1 /= 0
-	//2 + 2 |= 3
-	//2 + 3 += 6
-
-	//3 + 1 += 6
-	//3 + 2 /= 0
-	//3 + 3 |= 3
-
-	auto moveMap	= std::map <char, uint16_t> { {'A', 1}, {'B', 2}, {'C', 3}, {'X', 1}, {'Y', 2}, {'Z', 3} };
-	auto win		= std::vector <uint16_t> { 2, 3, 1 };
-	auto lose		= std::vector <uint16_t> { 3, 1, 2 };
-	auto score		= std::pair <uint16_t, uint16_t>{moveMap[round[2]], 0};
-
+	public:
 	enum class Score : uint16_t
 	{
 		Lose = 0,
 		Draw = 3,
-		Win	 = 6,
+		Win = 6,
 	};
 
-	if (moveMap[round[0]] == moveMap[round[2]])
-		std::get <1>(score) = (uint16_t)Score::Draw;
+	std::map <char, Score> verConversion = { {'X', Score::Lose}, {'Y', Score::Draw}, {'Z', Score::Win} };
+	std::map <Score, uint16_t> scoreToIdx = { {Score::Win, 0}, {Score::Lose, 1} };
+	std::vector <uint16_t> win = { 2, 3, 1 };
+	std::vector <uint16_t> lose = { 3, 1, 2 };
+	std::array <std::vector <uint16_t>, 2> wlArray =  {win, lose};
+
+	Verdict() = default;
+};
+
+auto calculateRound(std::string const& round, size_t idx) -> std::pair <uint16_t, uint16_t>
+{
+	auto moveMap		= std::map <char, uint16_t> { {'A', 1}, {'B', 2}, {'C', 3} };
+	auto verdict		= std::make_unique <Verdict> ();
+	auto score			= std::pair <uint16_t, uint16_t> { 0, uint16_t(verdict->verConversion[round[2]])}; // Adding knew-result of the clash into the second data of pair.
+
+	using VS = Verdict::Score;
+	if (verdict->verConversion[round[2]] == VS::Draw)
+		std::get <0>(score) = moveMap[round[0]]; // If we are having draw, let's add equal result to our score-pair.
 	else
-	{
-		if (win[moveMap[round[2]] - 1] == moveMap[round[0]])
-			std::get <1>(score) = uint16_t(Score::Lose);
-		else if(lose[moveMap[round[2]]-1] == moveMap[round[0]])
-			std::get <1>(score) = uint16_t(Score::Win);
-	}
+		std::get <0>(score)	= verdict->wlArray[ verdict->scoreToIdx[ verdict->verConversion [ round[2] ] ] ][ moveMap[ round[0] ] - 1 ];
+		// Let's convert 'XYZ' into enumerators (Win, Lose etc), and then enums to indexes of win/loss array, then check one of the vectors for appropriate move.
 
-	auto returnVerdict = [&score]() -> std::string_view
+	auto returnVerdict = [&verdict, &round]() -> std::string_view
 	{
-		std::array <std::string_view, 3> verdict {"lose", "draw", "win"};
-		if (score.second == 0)
-			return verdict[0];
-		else if (score.second == 3)
-			return verdict[1];
-		else
-			return verdict[2];
+		auto vString		= std::array <std::string_view, 3> {"lose", "draw", "win"};
+		auto verdictMapIdx	= std::map <VS, uint16_t>{ {VS::Lose, 0}, {VS::Draw, 1}, {VS::Win, 2} };
+		return vString[verdictMapIdx[verdict->verConversion[round[2]]]];
 	};
 
-	std::cout << "Round " << idx << " {" << moveMap[round[0]] << ", " << moveMap[round[2]] << "} so it's " << returnVerdict() << "\n";
+	std::cout << "Round " << idx << " {" << moveMap[round[0]] << ", " << returnVerdict() << "} so it has " << score.first + score.second << "points. \n";
 	return score;
 }
 
@@ -84,8 +76,7 @@ auto matchRound(std::vector <std::string>& fileContainer) -> size_t
 	{
 		scorePair	= calculateRound(round, ++idx);
 		scoreSum	+= size_t(scorePair.first + scorePair.second);
-		std::cout << "Score: " << scorePair.first + scorePair.second << "\n";
-		std::cin.get();
+		std::cout << "Score: " << scorePair.first + scorePair.second << " Max Score: " << scoreSum << "\n";
 	}
 
 	return scoreSum;
