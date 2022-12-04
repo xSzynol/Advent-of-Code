@@ -23,7 +23,7 @@ void openFile(std::string_view filePath, std::ifstream& file, std::vector<std::s
 	file.close();
 }
 
-auto calculateRound(std::string& round, size_t idx) -> std::pair <uint16_t, uint16_t>
+auto calculateRound(std::string const& round, size_t idx) -> std::pair <uint16_t, uint16_t>
 {
 	//1 + 1 |= 3
 	//1 + 2 += 6
@@ -80,10 +80,12 @@ auto matchRound(std::vector <std::string>& fileContainer) -> size_t
 	auto scorePair	= std::pair <uint16_t, uint16_t>();
 	auto idx		= size_t(0);
 
-	for (auto& round : fileContainer)
+	for (auto const& round : fileContainer)
 	{
 		scorePair	= calculateRound(round, ++idx);
 		scoreSum	+= size_t(scorePair.first + scorePair.second);
+		std::cout << "Score: " << scorePair.first + scorePair.second << "\n";
+		std::cin.get();
 	}
 
 	return scoreSum;
